@@ -10,6 +10,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(DelicateCoroutinesApi::class)
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -21,37 +22,83 @@ suspend fun sendToMachine(dispenseQty: Int, position: Int, context: Context): Bo
     var floor = -1
     var progress = "ready"
     var isDispense = false
+    var ackReceived = false
+
+    fun buildCheckMachineStatus(): ByteArray {
+      val stx = byteArrayOf(0xFA.toByte(), 0xFB.toByte())
+      val cmd = 0x63.toByte()
+      val length = 0x01.toByte()
+      val packNo = 0x01.toByte()
+      val xor = (stx + byteArrayOf(
+        cmd,
+        length,
+        packNo
+      )).reduce { acc, b -> (acc.toInt() xor b.toInt()).toByte() }
+      return stx + byteArrayOf(cmd, length, packNo, xor)
+    }
+
+    suspend fun waitForAck(): Boolean = withTimeoutOrNull(200) {
+      var gotAck = false
+      manager.readSerialttyS1 { rawData ->
+        if (rawData.size >= 5 &&
+          rawData[0] == 0xFA.toByte() &&
+          rawData[1] == 0xFB.toByte() &&
+          rawData[2] == 0x42.toByte()
+        ) {
+          gotAck = true
+        }
+      }
+      delay(200)
+      gotAck
+    } ?: false
+
+    // เช็คสถานะเครื่องก่อนเริ่มงาน
+    manager.writeSerialttyS1(buildCheckMachineStatus())
 
     isDispense = true
     manager.writeSerialttyS2("# 1 1 3 1 6")
 
     manager.readSerialttyS1 { rawData ->
-      val response = rawData.joinToString(" ") { "%02x".format(it.toInt() and 0xFF) }
-
-//      Log.d("DataS1", "Received from ttyS1: $response")
+      val response = rawData.joinToString(" ") { "%02x".format(it.toInt() and 0xFF) }.uppercase()
 
       when {
-        response == "fa,fb,41,0,40" -> {
-          manager.writeSerialttyS1Every()
+        response == "FA FB 41 00 40" -> {
+          manager.writeSerialttyS1Ack()
 
           if (qty > 0) {
             manager.writeSerialttyS1(position)
+            GlobalScope.launch {
+              ackReceived = waitForAck()
+              if (!ackReceived) {
+                Log.e("Vending", "No ACK received for dispense command")
+              }
+            }
             qty--
           }
         }
 
-        response.startsWith("fa,fb,4,4") -> {
-          if (progress == "dispensing" && qty <= 0) {
-            progress = "liftDown"
-            GlobalScope.launch {
-              delay(1000)
-              manager.writeSerialttyS2("# 1 1 1 -1 2")
+        response.startsWith("FA FB 04 04") -> {
+          val statusCode = rawData.getOrNull(5)?.toInt()?.and(0xFF) ?: 0
+
+          when (statusCode) {
+            0x02 -> { // Dispense success
+              if (progress == "dispensing" && qty <= 0) {
+                progress = "liftDown"
+                GlobalScope.launch {
+                  delay(1000)
+                  manager.writeSerialttyS2("# 1 1 1 -1 2")
+                }
+              }
             }
+
+            0x03 -> Log.e("Vending", "Selection jammed")
+            0x04 -> Log.e("Vending", "Motor did not stop normally")
+            else -> manager.writeSerialttyS1Ack()
           }
         }
 
         else -> {
-          manager.writeSerialttyS1Every()
+          manager.writeSerialttyS1Ack()
         }
       }
     }

@@ -65,7 +65,7 @@ class SerialPortManager private constructor(context: Context) {
     }
   }
 
-  fun writeSerialttyS1Every(): Boolean {
+  fun writeSerialttyS1Ack(): Boolean {
     val commands = mutableListOf(0xfa, 0xfb, 0x42, 0x00, 0x43)
     val cmdBytes = commands.map { it.toByte() }.toByteArray()
 
@@ -198,12 +198,10 @@ class SerialPortManager private constructor(context: Context) {
   }
 
   fun getRunning(): Int {
-    Log.d("TEST", "Passed get")
     return prefs.getInt(PREF_RUNNING, 1)
   }
 
   fun saveRunning(value: Int) {
-    Log.d("TEST", "Passed add")
     prefs.edit() { putInt(PREF_RUNNING, value) }
   }
 

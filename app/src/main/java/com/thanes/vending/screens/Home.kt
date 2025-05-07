@@ -27,7 +27,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
@@ -38,7 +37,6 @@ import com.thanes.vending.services.RabbitMQService
 import com.thanes.vending.services.SerialPortManager
 import com.thanes.vending.services.sendToMachine
 import com.thanes.vending.ui.components.BarcodeInputField
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -149,31 +147,6 @@ fun HomeScreen(navController: NavHostController, context: Context) {
         Text("Dispense")
       }
     }
-
-
-//    if (dataS1.isNotEmpty()) {
-//      item {
-//        Spacer(modifier = Modifier.height(10.dp))
-//        Text("Received data s1:")
-//        LazyColumn {
-//          items(dataS1.size) { index ->
-//            Text(dataS1[index])
-//          }
-//        }
-//      }
-//    }
-//
-//    if (dataS2.isNotEmpty()) {
-//      item {
-//        Spacer(modifier = Modifier.height(10.dp))
-//        Text("Received data s2:")
-//        LazyColumn {
-//          items(dataS2.size) { index ->
-//            Text(dataS2[index])
-//          }
-//        }
-//      }
-//    }
 
     item {
       Spacer(modifier = Modifier.height(30.dp))
