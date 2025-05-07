@@ -142,7 +142,7 @@ fun HomeScreen(navController: NavHostController, context: Context) {
       )
 
       Button(onClick = {
-        scope.launch(Dispatchers.IO) {
+        scope.launch(Dispatchers.IO) {6
           usbManager.writeSerialttyS1(position.intValue)
         }
       }) {

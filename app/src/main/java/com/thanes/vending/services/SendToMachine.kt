@@ -15,13 +15,12 @@ import kotlinx.coroutines.launch
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 suspend fun sendToMachine(dispenseQty: Int, position: Int, context: Context): Boolean =
   coroutineScope {
+    val manager = SerialPortManager.getInstance(context)
     val result = CompletableDeferred<Boolean>()
     var qty = dispenseQty
     var floor = -1
     var progress = "ready"
     var isDispense = false
-
-    val manager = SerialPortManager.getInstance(context)
 
     isDispense = true
     manager.writeSerialttyS2("# 1 1 3 1 6")
@@ -33,22 +32,20 @@ suspend fun sendToMachine(dispenseQty: Int, position: Int, context: Context): Bo
 
       when {
         response == "fa,fb,41,0,40" -> {
+          manager.writeSerialttyS1Every()
+
           if (qty > 0) {
             manager.writeSerialttyS1(position)
             qty--
-          } else {
-            manager.writeSerialttyS1Every()
           }
         }
 
         response.startsWith("fa,fb,4,4") -> {
-          if (progress == "dispensing") {
-            if (qty <= 0) {
-              progress = "liftDown"
-              GlobalScope.launch {
-                delay(1000)
-                manager.writeSerialttyS2("# 1 1 1 -1 2")
-              }
+          if (progress == "dispensing" && qty <= 0) {
+            progress = "liftDown"
+            GlobalScope.launch {
+              delay(1000)
+              manager.writeSerialttyS2("# 1 1 1 -1 2")
             }
           }
         }
@@ -87,8 +84,9 @@ suspend fun sendToMachine(dispenseQty: Int, position: Int, context: Context): Bo
 
           "26,31,d,a,32,d,a,31,d,a,31,d,a,35,d,a" -> {
             if (progress == "liftUp") {
-              progress = "dispensing"
               manager.writeSerialttyS1(position)
+              progress = "dispensing"
+              Log.d("DataS2", "Send to ttyS1: $position")
             } else {
               manager.writeSerialttyS2("# 1 1 6 10 18")
               progress = "doorClosed"
@@ -96,8 +94,8 @@ suspend fun sendToMachine(dispenseQty: Int, position: Int, context: Context): Bo
           }
 
           "26,31,d,a,32,d,a,36,d,a,31,d,a,31,30,d,a" -> {
-            progress = "rackUnlocked"
             manager.writeSerialttyS2("# 1 1 3 0 5")
+            progress = "rackUnlocked"
           }
 
           "26,31,d,a,32,d,a,33,d,a,30,d,a,36,d,a" -> {
