@@ -49,6 +49,11 @@ class SerialPortManager private constructor(context: Context) {
         return false
       }
 
+      val configCommandStty1 = "stty -F %s 57600 cs8 -cstopb -parenb"
+      val configCommandStty2 = "stty -F %s 9600 cs8 -cstopb -parenb"
+      Runtime.getRuntime().exec(configCommandStty1.format(TTY_S1)).waitFor()
+      Runtime.getRuntime().exec(configCommandStty2.format(TTY_S2)).waitFor()
+
       inputStreamS1 = FileInputStream(s1File)
       outputStreamS1 = FileOutputStream(s1File)
 
@@ -56,7 +61,7 @@ class SerialPortManager private constructor(context: Context) {
       outputStreamS2 = FileOutputStream(s2File)
 
       isConnected = true
-      Log.d(TAG, "Connected to ttyS1 and ttyS2")
+      Log.d(TAG, "Connected to ttyS1 and ttyS2 with baud rate 57600")
       return true
     } catch (e: Exception) {
       Log.e(TAG, "Error connecting serial ports: ${e.message}")
@@ -72,10 +77,25 @@ class SerialPortManager private constructor(context: Context) {
     return try {
       outputStreamS1?.write(cmdBytes)
       outputStreamS1?.flush()
-      Log.d(TAG, "Sent to ttyS1: ${cmdBytes.joinToString(",")}")
+//      Log.d(TAG, "Sent to ttyS1: ${cmdBytes.joinToString(",")}")
       true
     } catch (e: Exception) {
       Log.e(TAG, "Error writing to ttyS1: ${e.message}")
+      false
+    }
+  }
+
+  fun writeSerialttyS1Raw(command: ByteArray): Boolean {
+    return try {
+      outputStreamS1?.write(command)
+      outputStreamS1?.flush()
+      Log.d(
+        TAG,
+        "Sent RAW to ttyS1: ${command.joinToString(",") { "%02x".format(it.toInt() and 0xFF) }}"
+      )
+      true
+    } catch (e: Exception) {
+      Log.e(TAG, "Error writing raw command to ttyS1: ${e.message}")
       false
     }
   }
@@ -102,7 +122,7 @@ class SerialPortManager private constructor(context: Context) {
     return try {
       outputStreamS1?.write(cmdBytes)
       outputStreamS1?.flush()
-      Log.d(TAG, "Sent to ttyS1: ${cmdBytes.joinToString(",")}")
+//      Log.d(TAG, "Sent to ttyS1: ${cmdBytes.joinToString(",")}")
       true
     } catch (e: Exception) {
       Log.e(TAG, "Error writing to ttyS1: ${e.message}")
@@ -119,7 +139,7 @@ class SerialPortManager private constructor(context: Context) {
     return try {
       outputStreamS2?.write(command.toByteArray(Charsets.US_ASCII))
       outputStreamS2?.flush()
-      Log.d(TAG, "Sent to ttyS2: $command")
+//      Log.d(TAG, "Sent to ttyS2: $command")
       true
     } catch (e: Exception) {
       Log.e(TAG, "Error writing to ttyS2: ${e.message}")
